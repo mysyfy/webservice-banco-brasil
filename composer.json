@@ -1,0 +1,25 @@
+{
+    "name": "marquesjuniorpalmas/BancoBrasil",
+    "description": "Integração completa com o sistema de cobrança do banco do brasil",
+    "keywords": ["boleto", "bb", "financeiro", "banco do brasil"],
+    "homepage": "https://github.com/marquesjuniorpalmas/BancoBrasil",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Marques Junior",
+            "email": "junioralphasistemas@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "email": "junioralphasistemas@gmail.com"
+    },
+    "require": {
+        "php": ">=7.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "MarquesJunior\\BancoBrasil\\": "src/"
+        }
+    }
+}
