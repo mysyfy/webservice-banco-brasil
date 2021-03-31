@@ -25,7 +25,7 @@ Para que este pacote possa funcionar são necessários os seguintes requisitos d
 
 ```
 //sandbox = HOMOLOGAÇÃO E production = PRODUÇÃO
-$bb = new BancoBrasil('CLIENTID', 'CLIENTSECRET', 'DEVELOPERKEY', 'AMBIENTE');
+$bb = new MarquesJunior\BancoBrasil\BancoBrasil('CLIENTID', 'CLIENTSECRET', 'DEVELOPERKEY', 'AMBIENTE');
 ```
 
 ## Gerar Token
