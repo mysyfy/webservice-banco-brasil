@@ -1,5 +1,7 @@
 <?php
 
+namespace MarquesJunior\BancoBrasil;
+
 class BancoBrasil {
     
     
