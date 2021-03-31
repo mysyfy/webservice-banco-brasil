@@ -2,7 +2,7 @@
     "name": "marquesjuniorpalmas/BancoBrasil",
     "description": "Integração completa com o sistema de cobrança do banco do brasil",
     "keywords": ["boleto", "bb", "financeiro", "banco do brasil"],
-    "homepage": "https://github.com/marquesjuniorpalmas/BancoBrasil",
+    "homepage": "https://github.com/marquesjuniorpalmas/webservice-banco-brasil",
     "license": "MIT",
     "authors": [
         {
