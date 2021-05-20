@@ -98,6 +98,60 @@ class BancoBrasil {
             );
         }
     }
+
+    public function getBoletos(array $fields = null) {
+
+        $availableOptions = [
+            'dataInicioVencimento',
+            'dataFimVencimento',
+            'dataInicioRegistro',
+            'dataFimRegistro',
+            'dataInicioMovimento',
+            'dataFimMovimento',
+            'codigoEstadoTituloCobranca',
+            'boletoVencido',
+            'indice'
+        ];
+
+        if(count(array_diff(array_keys($fields), $availableOptions))) {
+            throw new \Exception('Unavailable query parameter');
+        }
+
+        if($this->ambiente == 'sandbox'){
+            $this->headers([
+                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
+                "Content-Type"      => "application/json",
+                "X-Developer-Application-Key" => $this->developer_application_key
+            ]);
+        }else{
+            $this->headers([
+                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
+                "Content-Type"      => "application/json",
+                "X-Application-Key" => $this->developer_application_key
+            ]);
+        }
+
+        $urlFields = $this->fields($fields, 'query');
+
+        $curl = curl_init("{$this->urls}/boletos?".$urlFields);
+
+        curl_setopt_array($curl, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_HTTPHEADER => ($this->headers),
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLINFO_HEADER_OUT => true
+        ]);
+
+        $data = json_decode(curl_exec($curl));
+
+        return $data;
+
+    }
+
     
     public function registerBoleto(array $fields = null){
         
