@@ -135,8 +135,8 @@ class BancoBrasil {
 
         }
 
-        $urlFields  = $this->fields($fields, 'query');
-        $curl       = curl_init("{$this->urls}/boletos?".$urlFields);
+        $this->fields($fields, 'query');
+        $curl       = curl_init("{$this->urls}/boletos?".$fields);
 
         curl_setopt_array($curl, [
             CURLOPT_RETURNTRANSFER => true,
