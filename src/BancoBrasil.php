@@ -118,22 +118,25 @@ class BancoBrasil {
         }
 
         if($this->ambiente == 'sandbox'){
+
             $this->headers([
                 "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
                 "Content-Type"      => "application/json",
                 "X-Developer-Application-Key" => $this->developer_application_key
             ]);
+
         }else{
+
             $this->headers([
                 "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
                 "Content-Type"      => "application/json",
                 "X-Application-Key" => $this->developer_application_key
             ]);
+
         }
 
-        $urlFields = $this->fields($fields, 'query');
-
-        $curl = curl_init("{$this->urls}/boletos?".$urlFields);
+        $urlFields  = $this->fields($fields, 'query');
+        $curl       = curl_init("{$this->urls}/boletos?".$urlFields);
 
         curl_setopt_array($curl, [
             CURLOPT_RETURNTRANSFER => true,
