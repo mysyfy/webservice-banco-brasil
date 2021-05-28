@@ -28,38 +28,62 @@ class BancoBrasil {
         $this->base64 = "{$this->clientID}:{$this->clientSecret}";
         
         if($ambiente == 'sandbox'){
-            $this->urlToken = 'https://oauth.sandbox.bb.com.br/oauth/token';
-            $this->urls = 'https://api.sandbox.bb.com.br/cobrancas/v2';
-            $this->ambiente = $ambiente;
+            $this->urlToken     = 'https://oauth.sandbox.bb.com.br/oauth/token';
+            $this->urls         = 'https://api.sandbox.bb.com.br/cobrancas/v2';
+            $this->ambiente     = $ambiente;
         }else{
-            $this->urlToken = 'https://oauth.bb.com.br/oauth/token';
-            $this->urls = 'https://api.bb.com.br/cobrancas/v2';
-            $this->ambiente = $ambiente;
+            $this->urlToken     = 'https://oauth.bb.com.br/oauth/token';
+            $this->urls         = 'https://api.bb.com.br/cobrancas/v2';
+            $this->ambiente     = $ambiente;
         }
     }
     
     
     public function getTokenAcess()
     {
-        
-        $fields['grant_type'] = 'client_credentials';
-        $fields['scope'] = 'cobrancas.boletos-info cobrancas.boletos-requisicao';
-        $this->fields($fields,'query');
-        
-        $ci = curl_init($this->urlToken);
-        curl_setopt($ci, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ci, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ci, CURLOPT_POST, true);
-        curl_setopt($ci, CURLOPT_POSTFIELDS, $this->fields);
-        curl_setopt($ci, CURLOPT_HTTPHEADER, [
-            "Content-Type: application/x-www-form-urlencoded",
-            'Authorization: Basic '. base64_encode($this->clientID.':'.$this->clientSecret).''
-        ]);
-        
-        $resposta = curl_exec($ci);
-        curl_close($ci);
-        
-        $resultado = json_decode($resposta);
+        $sFileCachePath = 'bb.cache.token';
+        $lCacheHit      = false;
+
+        if(file_exists($sFileCachePath)) {
+
+            $cache = unserialize(file_get_contents($sFileCachePath));
+
+            if($cache['expiresAt'] < time()) {
+                $resultado = $cache['token'];
+                $lCacheHit = true;
+            }
+
+        }
+
+        if(!$lCacheHit || 1 ) {
+
+            $fields['grant_type']   = 'client_credentials';
+            $fields['scope']        = 'cobrancas.boletos-info cobrancas.boletos-requisicao';
+            $this->fields($fields,'query');
+
+            $ci = curl_init($this->urlToken);
+            curl_setopt($ci, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ci, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ci, CURLOPT_POST, true);
+            curl_setopt($ci, CURLOPT_POSTFIELDS, $this->fields);
+            curl_setopt($ci, CURLOPT_HTTPHEADER, [
+                "Content-Type: application/x-www-form-urlencoded",
+                'Authorization: Basic '. base64_encode($this->clientID.':'.$this->clientSecret).''
+            ]);
+
+            $resposta = curl_exec($ci);
+            curl_close($ci);
+            $resultado = json_decode($resposta);
+
+            $fileCache = serialize([
+                'token'     => $resultado,
+                'expiresAt' => time() + $resultado->expires_in
+            ]);
+
+            file_put_contents($sFileCachePath, $fileCache);
+
+        }
+
         
         return $resultado;
     }
@@ -99,7 +123,7 @@ class BancoBrasil {
         }
     }
 
-    public function getBoletos(array $fields = null) {
+    public function getBoletos(array $fields = null, $iProx = 0) {
 
         $availableOptions = [
             'dataInicioVencimento',
@@ -113,68 +137,69 @@ class BancoBrasil {
             'indice'
         ];
 
-        if(count(array_diff(array_keys($fields), $availableOptions))) {
+        if(0 && count(array_diff(array_keys($fields), $availableOptions))) {
             throw new \Exception('Unavailable query parameter');
         }
 
-        if($this->ambiente == 'sandbox'){
-
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "Content-Type"      => "application/json",
-                "X-Developer-Application-Key" => $this->developer_application_key
-            ]);
-
-        }else{
-
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "Content-Type"      => "application/json",
-                "X-Application-Key" => $this->developer_application_key
-            ]);
-
-        }
-
-        $this->fields($fields, 'query');
-        $curl       = curl_init("{$this->urls}/boletos?".$this->fields);
-
-        curl_setopt_array($curl, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "GET",
-            CURLOPT_HTTPHEADER => ($this->headers),
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLINFO_HEADER_OUT => true
+        $this->headers([
+            "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
+            "Content-Type"      => "application/json",
+            "X-Developer-Application-Key" => $this->developer_application_key
         ]);
 
-        $data = json_decode(curl_exec($curl));
+        $ret = [];
 
-        return $data;
+        do {
+
+            $fields['indice'] = $iProx;
+            $this->fields($fields, 'query');
+
+            $curl = curl_init("{$this->urls}/boletos?".$this->fields);
+
+            curl_setopt_array($curl, [
+                CURLOPT_RETURNTRANSFER  => true,
+                CURLOPT_MAXREDIRS       => 10,
+                CURLOPT_TIMEOUT         => 30,
+                CURLOPT_HTTP_VERSION    => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST   => "GET",
+                CURLOPT_POSTFIELDS      => [],
+                CURLOPT_HTTPHEADER      => ($this->headers),
+                CURLOPT_SSL_VERIFYPEER  => false,
+                CURLINFO_HEADER_OUT     => true
+            ]);
+
+            $responseText   = curl_exec($curl);
+
+            $data           = json_decode($responseText);
+
+            if($data && isset($data->proximoIndice)) {
+
+                $ret[] = $data;
+                $iProx = (int) $data->proximoIndice;
+
+            } elseif(!isset($data->proximoIndice)) {
+
+                return [];
+
+            }
+
+        } while(isset($data->indicadorContinuidade) && $data->indicadorContinuidade == 'S');
+
+        return $ret;
 
     }
-
     
-    public function registerBoleto(array $fields = null){
-        
-        if($this->ambiente == 'sandbox'){
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "Content-Type"      => "application/json",
-                "X-Developer-Application-Key" => $this->developer_application_key
-            ]);
-        }else{
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "Content-Type"      => "application/json",
-                "X-Application-Key" => $this->developer_application_key
-            ]);
-        }
-        
+    public function registerBoleto(array $fields = null) {
+
+        $this->headers([
+            "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
+            "Content-Type"      => "application/json",
+            "X-Developer-Application-Key" => $this->developer_application_key
+        ]);
+
         $this->fields($fields,'json');
-        
         $curl = curl_init("{$this->urls}/boletos");
+
         curl_setopt_array($curl,[
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_MAXREDIRS => 10,
@@ -194,19 +219,13 @@ class BancoBrasil {
     
     public function alterBoleto($idBoleto, array $fields = null){
         
-        if($this->ambiente == 'sandbox'){
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "Content-Type"      => "application/json",
-                "X-Developer-Application-Key" => $this->developer_application_key
-            ]);
-        }else{
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "Content-Type"      => "application/json",
-                "X-Application-Key" => $this->developer_application_key
-            ]);
-        }
+
+        $this->headers([
+            "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
+            "Content-Type"      => "application/json",
+            "X-Developer-Application-Key" => $this->developer_application_key
+        ]);
+
         
         $this->fields($fields,'json');
         
@@ -230,19 +249,13 @@ class BancoBrasil {
     
     public function baixaBoleto($idBoleto, array $fields = null){
         
-        if($this->ambiente == 'sandbox'){
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "Content-Type"      => "application/json",
-                "X-Developer-Application-Key" => $this->developer_application_key
-            ]);
-        }else{
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "Content-Type"      => "application/json",
-                "X-Application-Key" => $this->developer_application_key
-            ]);
-        }
+
+        $this->headers([
+            "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
+            "Content-Type"      => "application/json",
+            "X-Developer-Application-Key" => $this->developer_application_key
+        ]);
+
         
         $this->fields($fields,'json');
         
@@ -265,20 +278,14 @@ class BancoBrasil {
     }
     
     public function readBoleto($idBoleto, $convenio){
-        
-        if($this->ambiente == 'sandbox'){
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "X-Developer-Application-Key" => $this->developer_application_key
-            ]);
-        }else{
-            $this->headers([
-                "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
-                "X-Application-Key" => $this->developer_application_key
-            ]);
-        }
+
+        $this->headers([
+            "Authorization"     => "Bearer " . $this->getTokenAcess()->access_token,
+            "X-Developer-Application-Key" => $this->developer_application_key
+        ]);
         
         $curl = curl_init("{$this->urls}/boletos/{$idBoleto}?numeroConvenio={$convenio}");
+
         curl_setopt_array($curl,[
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_MAXREDIRS => 10,
