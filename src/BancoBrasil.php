@@ -41,7 +41,7 @@ class BancoBrasil {
     
     public function getTokenAcess()
     {
-        $sFileCachePath = 'bb.cache.token';
+        $sFileCachePath = sys_get_temp_dir().'/bb.cache.token';
         $lCacheHit      = false;
 
         if(file_exists($sFileCachePath)) {
